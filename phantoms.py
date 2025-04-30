@@ -34,14 +34,16 @@ def draw_bezier(img, p0, p1, p2, intensity=0.9, thickness=2):
 
 # ---- Main Function: Generate Filled Phantom with Curves & Lines ----
 def generate_filled_phantom(resolution=512, num_shapes=50, num_lines=10, num_curves=5, noise_type="both", seed=42):
-    """Generates a phantom filled with random shapes, lines, and curved structures.
-     Parameters:
-    - resolution: Image size (e.g., 512x512)
-    - num_shapes: number of random shapes like polygon, ellipse, disk
-    - num_lines: Number of straight lines randomly placed on the image
-    - num_curves: Number of curved lines using Bezier curves
-    - noise_type: None, "poisson", "gaussian", or "both" (for CT phantom)
-    - seed: Random seed for reproducibility
+    """
+    Generates a phantom filled with random shapes, lines, and curved structures.
+    
+    Parameters:
+        resolution: Image size (e.g., 512x512)
+        num_shapes: Number of random shapes like polygons, ellipses, disks
+        num_lines: Number of straight lines randomly placed on the image
+        num_curves: Number of curved lines using Bezier curves
+        noise_type: None, "poisson", "gaussian", or "both" (for CT phantom)
+        seed: Random seed for reproducibility
     """
     if seed is not None:
         np.random.seed(seed)
@@ -140,17 +142,17 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
     - "resolution": Starburst pattern with high-frequency ellipses (for resolution testing).
     - "ct": Realistic CT-like phantom with soft tissue, bones, and air pockets.
     - "filled": Filled phantom with random shapes, lines, and curved structures.
-
+    
     Parameters:
-    - phantom_type: "resolution" or "ct" or "basic" or "filled
-    - resolution: Image size (e.g., 512x512)
-    - num_spikes: Number of spikes in the resolution phantom (for starburst)
-    - num_ellipses: Number of ellipses in the resolution phantom
-    - noise_type: None, "poisson", "gaussian", or "both" (for CT phantom)
-    - seed: Random seed for reproducibility
-
+        phantom_type: "resolution", "ct", "basic", or "filled"
+        resolution: Image size (e.g., 512x512)
+        num_spikes: Number of spikes in the resolution phantom (for starburst)
+        num_ellipses: Number of ellipses in the resolution phantom
+        noise_type: None, "poisson", "gaussian", or "both" (for CT phantom)
+        seed: Random seed for reproducibility
+    
     Returns:
-    - NumPy array representing the phantom.
+        NumPy array representing the phantom.
     """
 
     if seed is not None:
@@ -271,20 +273,21 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
         print(f"The grey level intensities for {phantom_type}:",len(np.unique(img)))
     return img
 
+def create_phantom(phantom_type="basic"):
+    # Generate and Display All Phantoms
+    phantom_types = ["basic", "resolution", "ct", "filled"]
+    fig, axes = plt.subplots(1, 4, figsize=(16, 6))
+    all_images = []
+    for i, p_type in enumerate(phantom_types):
+        if p_type == "filled":
+            img = generate_filled_phantom(resolution=512, num_shapes=20, num_lines=0, num_curves=2, noise_type=None, seed=42)
 
-# Generate and Display All Phantoms
-phantom_types = ["basic", "resolution", "ct", "filled"]
-fig, axes = plt.subplots(1, 4, figsize=(16, 6))
+        else:
+            img = generate_phantom(phantom_type=p_type, resolution=512, num_spikes=10, num_ellipses=5, noise_type="both", seed=42)
+            all_images.append(img)
+        axes[i].imshow(img, cmap='gray')
+        axes[i].set_title(f"{p_type.capitalize()} Phantom")
+        axes[i].axis("off")
 
-for i, p_type in enumerate(phantom_types):
-    if p_type == "filled":
-        img = generate_filled_phantom(resolution=512, num_shapes=20, num_lines=0, num_curves=2, noise_type=None, seed=42)
-
-    else:
-        img = generate_phantom(phantom_type=p_type, resolution=512, num_spikes=10, num_ellipses=5, noise_type="both", seed=42)
-
-    axes[i].imshow(img, cmap='gray')
-    axes[i].set_title(f"{p_type.capitalize()} Phantom")
-    axes[i].axis("off")
-
-plt.show()
+    plt.show()
+    return all_images[1]

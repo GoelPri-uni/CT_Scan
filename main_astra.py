@@ -1,24 +1,25 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from phantoms import generate_phantom
+from phantoms import create_phantom # LABEdits
 from utils_astra import generate_sinogram_astra, create_astra_geometry, display_sinogram, add_noise, compute_rmse, compute_rnmp, save_image, reconstruct_fbp_astra
 from pdmdart_astra import PDMDARTAstra
 
 def main():
-    # 1. 生成phantom
+    # 1. Generate the phantom
     print("Generating phantom...")
     phantom = generate_phantom(phantom_type="basic", resolution=256, noise_type=None)
-    
-    # 2. 创建ASTRA几何结构
-    num_angles = 30  # 使用30个投影角度
+    phantom = create_phantom(phantom_type='basic') #LABEdits
+    # 2. Create ASTRA geometry
+    num_angles = 30  # Use 30 projection angles
     proj_geom, vol_geom = create_astra_geometry(phantom.shape, num_angles)
     
-    # 3. 生成sinogram
+    # 3. Generate the sinogram
     print("Generating sinogram using ASTRA...")
-    sinogram = generate_sinogram_astra(phantom, proj_geom)
+    sinogram = generate_sinogram_astra(phantom, proj_geom, vol_geom)  # Pass vol_geom here
     sinogram = add_noise(sinogram, noise_type='poisson', noise_level=1.0)
     
-    # 显示phantom和sinogram
+    # Display the phantom and sinogram
     plt.figure(figsize=(12, 5))
     plt.subplot(121)
     plt.imshow(phantom, cmap='gray')
@@ -30,10 +31,10 @@ def main():
     plt.tight_layout()
     plt.show()
 
-    # Save phantom
+    # Save the phantom
     save_image(phantom, "results/phantom.png")
 
-    # Save sinogram
+    # Save the sinogram
     save_image(sinogram, "results/sinogram.png")
 
     # 4. Perform FBP reconstruction
@@ -41,9 +42,9 @@ def main():
     fbp_reconstruction = reconstruct_fbp_astra(sinogram, proj_geom, vol_geom)
     save_image(fbp_reconstruction, "results/fbp_reconstruction.png")
 
-    # 5. 使用PDM-DART进行重建
+    # 5. Perform PDM-DART reconstruction
     print("Starting PDM-DART reconstruction with ASTRA...")
-    reconstructor = PDMDARTAstra(sinogram, phantom.shape, num_grey_levels=2)
+    reconstructor = PDMDARTAstra(sinogram, phantom, phantom.shape, num_grey_levels=5) #LABEdits - sending phantom
     reconstruction = reconstructor.reconstruct(num_iterations=20, sirt_iterations=10)
     save_image(reconstruction, "results/pdm_dart_reconstruction.png")
 
@@ -56,7 +57,7 @@ def main():
     print(f"FBP RMSE: {fbp_rmse:.4f}, FBP rNMP: {fbp_rnmp:.4f}")
     print(f"PDM-DART RMSE: {pdm_rmse:.4f}, PDM-DART rNMP: {pdm_rnmp:.4f}")
 
-    # 7. 显示重建结果
+    # 7. Display reconstruction results
     plt.figure(figsize=(15, 5))
     plt.subplot(141)
     plt.imshow(phantom, cmap='gray')
