@@ -3,7 +3,8 @@ from scipy.ndimage import gaussian_filter
 from scipy.optimize import minimize
 import astra
 from utils_astra import reconstruct_sirt_astra
-
+from sklearn.mixture import GaussianMixture
+import numpy as np
 class PDMDARTAstra:
     def __init__(self, sinogram,phantom_image, phantom_shape, num_grey_levels=2):
         """
@@ -48,7 +49,10 @@ class PDMDARTAstra:
         """
         vol_geom = astra.create_vol_geom(phantom_shape[0], phantom_shape[1])
         proj_geom = astra.create_proj_geom('parallel', 1.0, detector_size, np.linspace(0, np.pi, num_angles))
+
+        
         return proj_geom, vol_geom  # Return as separate objects
+        
 
     def forward_project(self, image):
         """Perform forward projection using ASTRA."""
@@ -186,7 +190,43 @@ class PDMDARTAstra:
         segmented[mask] = grey_levels[-1]
         
         return segmented
+
+
     
+
+    def estimate_grey_levels_and_thresholds_gmm(self, image, num_levels):
+        """
+        Estimate grey levels and thresholds using Gaussian Mixture Model.
+    
+        Parameters:
+            image (ndarray): Input 2D image (e.g., from SIRT)
+            num_levels (int): Number of grey levels/classes to estimate
+    
+        Returns:
+            grey_levels (ndarray): Sorted grey level means
+            thresholds (ndarray): Midpoints between sorted grey levels
+        """
+        # Flatten and remove extreme background if needed
+        flat = image.flatten().reshape(-1, 1)
+        
+        
+        mask = (flat > np.percentile(flat, 1)) & (flat < np.percentile(flat, 99))
+        flat = flat[mask].reshape(-1, 1) 
+    
+        # Fit GMM
+        gmm = GaussianMixture(n_components=num_levels, covariance_type='full', random_state=0)
+        gmm.fit(flat)
+        print(flat.shape)  # Should print: (n_pixels, 1)
+
+    
+        # Extract and sort the grey level means
+        grey_levels = np.sort(gmm.means_.flatten())
+    
+        # Compute thresholds between grey levels
+        thresholds = (grey_levels[:-1] + grey_levels[1:]) / 2
+    
+        return grey_levels, thresholds
+
     def get_boundary_pixels(self, segmented):
         """Get boundary pixels (pixels different from their neighbors)."""
         boundary = np.zeros_like(segmented, dtype=bool)
@@ -200,7 +240,8 @@ class PDMDARTAstra:
                     boundary[i, j] = True
         
         return boundary
-    
+
+   
     def reconstruct(self, num_iterations=20, sirt_iterations=10, update_params_every=5):
         """
         Main PDM-DART reconstruction algorithm (using ASTRA).
@@ -215,6 +256,8 @@ class PDMDARTAstra:
         """
         # Initial SIRT reconstruction
         self.reconstruction = self.reconstruct_sirt(self.sinogram, sirt_iterations)
+        self.grey_levels, self.thresholds = self.estimate_grey_levels_and_thresholds_gmm(self.reconstruction, self.num_grey_levels)
+
         
         for k in range(num_iterations):
             print(f"Iteration {k+1}/{num_iterations}")
