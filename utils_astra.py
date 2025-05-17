@@ -6,129 +6,141 @@ from skimage.io import imsave
 
 def create_astra_geometry(phantom_shape, num_angles, detector_size=None):
     """
-    创建ASTRA几何结构
-    
-    参数:
-        phantom_shape: phantom图像形状(rows, cols)
-        num_angles: 投影角度数量
-        detector_size: 探测器单元数量(默认与图像宽度相同)
-    
-    返回:
-        proj_geom: ASTRA投影几何
-        vol_geom: ASTRA体积几何
+    Create ASTRA geometry.
+
+    Parameters:
+        phantom_shape: Shape of the phantom image (rows, cols)
+        num_angles: Number of projection angles
+        detector_size: Number of detector elements (defaults to image width)
+
+    Returns:
+        proj_geom: ASTRA projection geometry
+        vol_geom: ASTRA volume geometry
     """
     if detector_size is None:
         detector_size = phantom_shape[1]
     
-    # 创建体积几何
+    # Create volume geometry
     vol_geom = astra.create_vol_geom(phantom_shape[0], phantom_shape[1])
+
+    det_count = int(np.sqrt(2) * phantom_shape[0])
     
-    # 创建平行光束投影几何
+    # Create parallel beam projection geometry
     angles = np.linspace(0, np.pi, num_angles, endpoint=False)
-    proj_geom = astra.create_proj_geom('parallel', 1.0, detector_size, angles)
+    proj_geom = astra.create_proj_geom('parallel', 1.0, det_count, angles)
     
-    # 返回投影几何和体积几何
     return proj_geom, vol_geom
 
 def generate_sinogram_astra(phantom, proj_geom, vol_geom):
     """
-    使用ASTRA生成phantom的sinogram
-    
-    参数:
-        phantom: 输入的phantom图像(2D numpy数组)
-        proj_geom: ASTRA投影几何
-        vol_geom: ASTRA体积几何
-    
-    返回:
-        sinogram: 生成的sinogram(角度×探测器位置)
-        projector_id: ASTRA投影器ID(需要后续清理)
+    Generate sinogram of a phantom using ASTRA.
+
+    Parameters:
+        phantom: Input phantom image (2D numpy array)
+        proj_geom: ASTRA projection geometry
+        vol_geom: ASTRA volume geometry
+
+    Returns:
+        sinogram: Generated sinogram (angles × detector positions)
     """
-    # 创建ASTRA需要的volume数据
-    phantom_id = astra.data2d.create('-vol', vol_geom, phantom)  # Use vol_geom here
+    phantom_id = astra.data2d.create('-vol', vol_geom, phantom)
+    sinogram_id = astra.data2d.create('-sino', proj_geom, 0)
     
-    # 创建sinogram存储空间
-    sinogram_id = astra.data2d.create('-sino', proj_geom, 0)  # Corrected to handle single return value
-    
-    # 配置投影算子
     cfg = astra.astra_dict('FP')
     cfg['ProjectionDataId'] = sinogram_id
     cfg['VolumeDataId'] = phantom_id
-    cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)  # Use vol_geom here
-    
-    # 创建并运行投影算法
+    cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)
+
     alg_id = astra.algorithm.create(cfg)
     astra.algorithm.run(alg_id)
-    
-    # 获取sinogram数据
+
     sinogram = astra.data2d.get(sinogram_id)
-    
-    # 清理ASTRA对象
+
+    # Clean up
     astra.algorithm.delete(alg_id)
     astra.data2d.delete(phantom_id)
     astra.data2d.delete(sinogram_id)
     
     return sinogram
 
+
+def SIRT(vol_geom, vol_data, sino_id, iters=2000, use_gpu=False):
+    # create starting reconstruction
+    rec_id = astra.data2d.create('-vol', vol_geom, data=vol_data)
+    # define SIRT config params
+    alg_cfg = astra.astra_dict('SIRT_CUDA' if use_gpu else 'SIRT')
+    alg_cfg['ProjectionDataId'] = sino_id
+    alg_cfg['ReconstructionDataId'] = rec_id
+    alg_cfg['option'] = {}
+    alg_cfg['option']['MinConstraint'] = 0
+    alg_cfg['option']['MaxConstraint'] = 255
+    # define algorithm
+    alg_id = astra.algorithm.create(alg_cfg)
+    # run the algorithm
+    astra.algorithm.run(alg_id, iters)
+    # create reconstruction data
+    rec = astra.data2d.get(rec_id)
+
+    return rec_id, rec
+    
 def reconstruct_sirt_astra(sinogram, proj_geom, vol_geom, num_iterations=10, mask=None):
     """
-    使用ASTRA进行SIRT重建
-    
-    参数:
-        sinogram: 输入sinogram
-        proj_geom: ASTRA投影几何
-        vol_geom: ASTRA体积几何
-        num_iterations: 迭代次数
-        mask: 只更新mask指定的区域(None表示更新全部)
-    
-    返回:
-        重建图像
+    Perform SIRT reconstruction using ASTRA.
+
+    Parameters:
+        sinogram: Input sinogram
+        proj_geom: ASTRA projection geometry
+        vol_geom: ASTRA volume geometry
+        num_iterations: Number of iterations
+        mask: Optional mask to restrict updates (None means full update)
+
+    Returns:
+        Reconstructed image
     """
-    # 创建sinogram数据对象
     sinogram_id = astra.data2d.create('-sino', proj_geom, sinogram)
-    
-    # 创建重建图像存储空间
     recon_id = astra.data2d.create('-vol', vol_geom, 0)
-    
-    # 配置SIRT算法
+
     cfg = astra.astra_dict('SIRT')
     cfg['ReconstructionDataId'] = recon_id
     cfg['ProjectionDataId'] = sinogram_id
     cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)
+    cfg['option'] = {}
+    cfg['option']['MinConstraint'] = 0
+    cfg['option']['MaxConstraint'] = 255
     
-    # 创建并运行SIRT算法
     alg_id = astra.algorithm.create(cfg)
-    astra.algorithm.run(alg_id, num_iterations)
-    
-    # 获取重建图像
+    astra.algorithm.run(alg_id)
+
     reconstruction = astra.data2d.get(recon_id)
-    
-    # 应用mask
+
+    # Apply mask if given
     if mask is not None:
         phantom_id = astra.data2d.create('-vol', vol_geom, reconstruction)
         recon_mask_id = astra.data2d.create('-vol', vol_geom, 0)
-        
+
         cfg_mask = astra.astra_dict('SIRT')
         cfg_mask['ReconstructionDataId'] = recon_mask_id
         cfg_mask['ProjectionDataId'] = sinogram_id
         cfg_mask['ProjectorId'] = cfg['ProjectorId']
-        cfg_mask['option'] = {'ReconstructionMaskId': phantom_id}
         
+        cfg_mask['option'] = {'ReconstructionMaskId': phantom_id}
+
         alg_mask_id = astra.algorithm.create(cfg_mask)
         astra.algorithm.run(alg_mask_id, num_iterations)
-        
+
         reconstruction = astra.data2d.get(recon_mask_id)
         astra.data2d.delete(recon_mask_id)
         astra.data2d.delete(phantom_id)
-    
-    # 清理ASTRA对象
+
+    # Clean up
     astra.algorithm.delete(alg_id)
     astra.data2d.delete(sinogram_id)
     astra.data2d.delete(recon_id)
-    
+
     return reconstruction
 
 def display_sinogram(sinogram):
-    """显示sinogram图像"""
+    """Display the sinogram image."""
     plt.figure(figsize=(10, 5))
     plt.imshow(sinogram, cmap='gray', aspect='auto', 
                extent=[0, sinogram.shape[1], 180, 0])
@@ -140,15 +152,15 @@ def display_sinogram(sinogram):
 
 def add_noise(sinogram, noise_type='poisson', noise_level=1.0):
     """
-    向sinogram添加噪声
-    
-    参数:
-        sinogram: 输入sinogram
-        noise_type: 噪声类型('poisson'或'gaussian')
-        noise_level: 噪声强度
-    
-    返回:
-        带噪声的sinogram
+    Add noise to the sinogram.
+
+    Parameters:
+        sinogram: Input sinogram
+        noise_type: Type of noise ('poisson' or 'gaussian')
+        noise_level: Intensity of noise
+
+    Returns:
+        Noisy sinogram
     """
     if noise_type == 'poisson':
         max_val = np.max(sinogram)
@@ -176,38 +188,57 @@ def compute_rnmp(original, reconstructed):
 def save_image(image, filepath):
     """
     Save an image to the specified filepath.
+
+    Parameters:
+        image: Input image
+        filepath: Destination path
     """
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if image.dtype == np.float32 or image.dtype == np.float64:
-        # Normalize image to 0-255 and convert to uint8
         image = (255 * (image - np.min(image)) / (np.max(image) - np.min(image))).astype(np.uint8)
     imsave(filepath, image)
 
-def reconstruct_fbp_astra(sinogram, proj_geom, vol_geom):
+def reconstruct_fbp_astra(sinogram, proj_geom, vol_geom, num_iterations=10):
     """
-    Perform FBP reconstruction using ASTRA.
+    Perform Filtered Back Projection (FBP) reconstruction using ASTRA.
+
+    Parameters:
+        sinogram: Input sinogram
+        proj_geom: ASTRA projection geometry
+        vol_geom: ASTRA volume geometry
+
+    Returns:
+        Reconstructed image
     """
     sinogram_id = astra.data2d.create('-sino', proj_geom, sinogram)
     recon_id = astra.data2d.create('-vol', vol_geom, 0)
-    projector_id = astra.create_projector('line', proj_geom, vol_geom)  # Add projector ID
+    projector_id = astra.create_projector('line', proj_geom, vol_geom)
+    
+    astra.algorithm.run(alg_id, num_iterations)
+    
     cfg = astra.astra_dict('FBP')
     cfg['ReconstructionDataId'] = recon_id
     cfg['ProjectionDataId'] = sinogram_id
-    cfg['ProjectorId'] = projector_id  # Include projector ID
+    cfg['ProjectorId'] = projector_id
     cfg['option'] = {'FilterType': 'Ram-Lak'}
+
     alg_id = astra.algorithm.create(cfg)
     astra.algorithm.run(alg_id)
+
     reconstruction = astra.data2d.get(recon_id)
+
+    # Clean up
     astra.algorithm.delete(alg_id)
     astra.data2d.delete(sinogram_id)
     astra.data2d.delete(recon_id)
-    astra.projector.delete(projector_id)  # Clean up projector
+    astra.projector.delete(projector_id)
+
     return reconstruction
 
 def display_absolute_difference(image1, image2, title="Absolute Difference"):
     """
     Display the absolute difference between two images.
-    
+
     Parameters:
         image1: First image (numpy array).
         image2: Second image (numpy array).
