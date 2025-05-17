@@ -11,8 +11,8 @@ def main():
     phantom = create_phantom("basic") #basic,  "resolution", "ct", "filled"
     
     
-    phantom = phantom.astype(np.float32)
-    phantom /= phantom.max()
+    # phantom = phantom.astype(np.float32)
+    # phantom /= phantom.max()
    
     num_angles = 100  # Use 30 projection angles
     proj_geom, vol_geom = create_astra_geometry(phantom.shape, num_angles)
