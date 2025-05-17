@@ -8,14 +8,12 @@ from pdmdart_astra import PDMDARTAstra
 def main():
     # 1. Generate the phantom
     print("Generating phantom...")
-    phantom = create_phantom() 
+    phantom = create_phantom("basic") #basic,  "resolution", "ct", "filled"
     
     
     phantom = phantom.astype(np.float32)
     phantom /= phantom.max()
-    phantom = all_images[0]
-    # 2. Create ASTRA geometry
-    
+   
     num_angles = 100  # Use 30 projection angles
     proj_geom, vol_geom = create_astra_geometry(phantom.shape, num_angles)
 
