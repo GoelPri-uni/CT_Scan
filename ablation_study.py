@@ -8,36 +8,28 @@ from utils_astra import create_astra_geometry, generate_sinogram_astra, compute_
 from pdmdart_astra import PDMDARTAstra
 
 def run_ablation():
-    # default settings from your initial code
-    default = {
-        'num_iterations': 20,
-        'sirt_iterations': 50,
-        'update_every': 5,
-        'phantom_type': 'resolution',
-        'resolution': 512,
-        'noise_type': None,
-        'num_angles': 5
+    param_grid = {
+        'num_iterations': [10, 20],
+        'sirt_iterations': [40, 80],
+        'update_every': [1, 5],
+        'phantom_type': ['basic'],
+        'resolution': [256, 512],
+        'noise_type': ['gaussian', 'poisson'],
+        'num_angles': [100, 180]
     }
 
-    # values to sweep for each hyperparameter
-    param_grid = {
-        'num_iterations': [10, 20, 50],
-        'sirt_iterations': [20, 50, 100],
-        'update_every': [1, 5, 10],
-        'phantom_type': ['resolution', 'ct', 'filled'],
-        'resolution': [128, 256, 512],
-        'noise_type': [None, 'poisson', 'gaussian'],
-        'num_angles': [5, 30, 60],
-    }
+    # Generate all combinations of hyperparameters
+    keys = list(param_grid.keys())
+    combinations = list(itertools.product(*param_grid.values()))
 
     records = []
-    # vary one hyper‐parameter at a time
-    for param, values in param_grid.items():
-        for val in values:
-            settings = default.copy()
-            settings[param] = val
 
-            # generate phantom & sinogram
+    for combo in combinations:
+        settings = dict(zip(keys, combo))
+
+        print(f"Running: {settings}")
+        try:
+            # Generate phantom and sinogram
             phantom = generate_phantom(
                 phantom_type=settings['phantom_type'],
                 resolution=settings['resolution'],
@@ -49,34 +41,41 @@ def run_ablation():
             )
             sino = generate_sinogram_astra(phantom, proj_geom, vol_geom)
 
-            # run PDM‐DART
-            reconstructor = PDMDARTAstra(sino, phantom, phantom.shape, num_grey_levels=10)
+            # Run PDM-DART reconstruction
+            reconstructor = PDMDARTAstra(
+                sino, phantom, phantom.shape,
+                num_angles=settings['num_angles'],
+                num_grey_levels=10
+            )
             recon = reconstructor.reconstruct(
                 num_iterations=settings['num_iterations'],
                 sirt_iterations=settings['sirt_iterations'],
                 update_params_every=settings['update_every']
             )
 
-            # compute RNMP
+            # Compute RNMP
             rnmp = compute_rnmp(phantom, recon)
-            records.append({
-                'hyperparam': param,
-                'value': val,
-                'rnmp': rnmp
-            })
-            print(f"Done {param}={val} → rnmp={rnmp:.4f}")
 
-    # save results
+            # Save full config + rnmp
+            record = settings.copy()
+            record['rnmp'] = rnmp
+            records.append(record)
+
+            print(f"✅ Done: RNMP={rnmp:.4f}")
+
+        except Exception as e:
+            print(f"❌ Failed for {settings}: {e}")
+
+    # Save to CSV
     df = pd.DataFrame(records)
-    df.to_csv('ablation_results.csv', index=False)
+    df.to_csv('ablation_results_fullgrid.csv', index=False)
 
-    # plot one line per hyperparameter
+    # Optional: plot RNMP vs one hyperparam at a time
     sns.set(style="whitegrid")
-    for param in param_grid:
-        subset = df[df['hyperparam'] == param]
-        plt.figure(figsize=(6,4))
-        sns.lineplot(data=subset, x='value', y='rnmp', marker='o')
-        plt.title(f'Ablation study on {param}')
+    for param in keys:
+        plt.figure(figsize=(6, 4))
+        sns.lineplot(data=df, x=param, y='rnmp', marker='o')
+        plt.title(f'Ablation on {param}')
         plt.xlabel(param)
         plt.ylabel('RNMP')
         plt.tight_layout()
