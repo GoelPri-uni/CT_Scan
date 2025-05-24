@@ -3,35 +3,46 @@ import astra
 import matplotlib.pyplot as plt
 import os
 from skimage.io import imsave
+from scipy.ndimage import gaussian_filter
 
-def create_astra_geometry(phantom_shape, num_angles, detector_size=None):
+
+def create_astra_geometry(phantom_shape, num_angles, detector_count=None, geometry_type='parallel'):
     """
-    Create ASTRA geometry.
-
+    Create ASTRA projection and volume geometry.
+    
     Parameters:
-        phantom_shape: Shape of the phantom image (rows, cols)
-        num_angles: Number of projection angles
-        detector_size: Number of detector elements (defaults to image width)
-
+        phantom_shape: (height, width) of the volume
+        num_angles: number of projection angles
+        detector_size: number of detector elements (optional)
+        geometry_type: 'parallel' or 'fanflat'
+        
     Returns:
-        proj_geom: ASTRA projection geometry
-        vol_geom: ASTRA volume geometry
+        proj_geom, vol_geom
     """
-    if detector_size is None:
-        detector_size = phantom_shape[1]
     
-    # Create volume geometry
+    det_count = int(4 * phantom_shape[0])
+    
     vol_geom = astra.create_vol_geom(phantom_shape[0], phantom_shape[1])
-
-    det_count = int(np.sqrt(2) * phantom_shape[0])
-    
-    # Create parallel beam projection geometry
     angles = np.linspace(0, np.pi, num_angles, endpoint=False)
-    proj_geom = astra.create_proj_geom('parallel', 1.0, det_count, angles)
+
+    if geometry_type == 'parallel':
+        det_spacing = 1.0
+        proj_geom = astra.create_proj_geom('parallel', det_spacing, det_count, angles)
+    
+    elif geometry_type == 'fanflat':
+        # Fan beam settings
+        det_spacing = 1.0
+        DSD = 1200.0  # Distance Source to Detector
+        DSO = 1000.0  # Distance Source to Object (volume center)
+
+        proj_geom = astra.create_proj_geom('fanflat', det_spacing, det_count, angles, DSO, DSD)
+    
+    else:
+        raise ValueError(f"Unknown geometry_type: {geometry_type}")
     
     return proj_geom, vol_geom
 
-def generate_sinogram_astra(phantom, proj_geom, vol_geom):
+def generate_sinogram_astra(phantom, proj_geom, vol_geom, geometry_type='parallel'):
     """
     Generate sinogram of a phantom using ASTRA.
 
@@ -49,8 +60,15 @@ def generate_sinogram_astra(phantom, proj_geom, vol_geom):
     cfg = astra.astra_dict('FP')
     cfg['ProjectionDataId'] = sinogram_id
     cfg['VolumeDataId'] = phantom_id
-    cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)
+    #cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)
 
+
+
+    if geometry_type == 'parallel':
+        cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)
+    elif geometry_type == 'fanflat':
+        cfg['ProjectorId'] = astra.create_projector('line_fanflat', proj_geom, vol_geom)
+        
     alg_id = astra.algorithm.create(cfg)
     astra.algorithm.run(alg_id)
 
@@ -82,62 +100,72 @@ def SIRT(vol_geom, vol_data, sino_id, iters=2000, use_gpu=False):
     rec = astra.data2d.get(rec_id)
 
     return rec_id, rec
+
+def reconstruct_sirt_astra(sinogram, proj_geom, vol_geom, num_iterations=10, mask=None, geometry_type='parallel'):
     
-def reconstruct_sirt_astra(sinogram, proj_geom, vol_geom, num_iterations=10, mask=None):
-    """
-    Perform SIRT reconstruction using ASTRA.
-
-    Parameters:
-        sinogram: Input sinogram
-        proj_geom: ASTRA projection geometry
-        vol_geom: ASTRA volume geometry
-        num_iterations: Number of iterations
-        mask: Optional mask to restrict updates (None means full update)
-
-    Returns:
-        Reconstructed image
-    """
     sinogram_id = astra.data2d.create('-sino', proj_geom, sinogram)
-    recon_id = astra.data2d.create('-vol', vol_geom, 0)
 
-    cfg = astra.astra_dict('SIRT')
-    cfg['ReconstructionDataId'] = recon_id
-    cfg['ProjectionDataId'] = sinogram_id
-    cfg['ProjectorId'] = astra.create_projector('line', proj_geom, vol_geom)
-    cfg['option'] = {}
-    cfg['option']['MinConstraint'] = 0
-    cfg['option']['MaxConstraint'] = 255
-    
-    alg_id = astra.algorithm.create(cfg)
-    astra.algorithm.run(alg_id)
+    if geometry_type == 'parallel':
+        projector_id = astra.create_projector('line', proj_geom, vol_geom)
+    elif geometry_type == 'fanflat':
+        projector_id = astra.create_projector('line_fanflat', proj_geom, vol_geom)
+    else:
+        raise ValueError(f"Unknown geometry type: {geometry_type}")
 
-    reconstruction = astra.data2d.get(recon_id)
-
-    # Apply mask if given
+    # Case 1: With mask
     if mask is not None:
-        phantom_id = astra.data2d.create('-vol', vol_geom, reconstruction)
-        recon_mask_id = astra.data2d.create('-vol', vol_geom, 0)
+        phantom_id = astra.data2d.create('-vol', vol_geom, mask.astype(np.float32))
+        recon_id = astra.data2d.create('-vol', vol_geom, 0)
 
-        cfg_mask = astra.astra_dict('SIRT')
-        cfg_mask['ReconstructionDataId'] = recon_mask_id
-        cfg_mask['ProjectionDataId'] = sinogram_id
-        cfg_mask['ProjectorId'] = cfg['ProjectorId']
-        
-        cfg_mask['option'] = {'ReconstructionMaskId': phantom_id}
+        cfg = astra.astra_dict('SIRT')
+        cfg['ReconstructionDataId'] = recon_id
+        cfg['ProjectionDataId'] = sinogram_id
+        cfg['ProjectorId'] = projector_id
+        cfg['option'] = {
+            'ReconstructionMaskId': phantom_id,
+            'MinConstraint': 0,
+            'MaxConstraint': 255
+        }
 
-        alg_mask_id = astra.algorithm.create(cfg_mask)
-        astra.algorithm.run(alg_mask_id, num_iterations)
+        alg_id = astra.algorithm.create(cfg)
+        astra.algorithm.run(alg_id, num_iterations)
 
-        reconstruction = astra.data2d.get(recon_mask_id)
-        astra.data2d.delete(recon_mask_id)
+        reconstruction = astra.data2d.get(recon_id)
+
+        # Clean up
+        astra.algorithm.delete(alg_id)
         astra.data2d.delete(phantom_id)
+        astra.data2d.delete(recon_id)
 
-    # Clean up
-    astra.algorithm.delete(alg_id)
+    # Case 2: No mask
+    else:
+        
+        recon_id = astra.data2d.create('-vol', vol_geom, 0)
+
+        cfg = astra.astra_dict('SIRT')
+        cfg['ReconstructionDataId'] = recon_id
+        cfg['ProjectionDataId'] = sinogram_id
+        cfg['ProjectorId'] = projector_id
+        cfg['option'] = {
+            'MinConstraint': 0,
+            'MaxConstraint': 255
+        }
+
+        alg_id = astra.algorithm.create(cfg)
+        astra.algorithm.run(alg_id, num_iterations)
+
+        reconstruction = astra.data2d.get(recon_id)
+
+        # Clean up
+        astra.algorithm.delete(alg_id)
+        astra.data2d.delete(recon_id)
+
+    # Always clean up this one
     astra.data2d.delete(sinogram_id)
-    astra.data2d.delete(recon_id)
+    astra.projector.delete(projector_id)
 
     return reconstruction
+
 
 def display_sinogram(sinogram):
     """Display the sinogram image."""
@@ -198,41 +226,25 @@ def save_image(image, filepath):
         image = (255 * (image - np.min(image)) / (np.max(image) - np.min(image))).astype(np.uint8)
     imsave(filepath, image)
 
-def reconstruct_fbp_astra(sinogram, proj_geom, vol_geom, num_iterations=10):
+def reconstruct_fbp_astra(sinogram, proj_geom, vol_geom, num_iterations):
     """
-    Perform Filtered Back Projection (FBP) reconstruction using ASTRA.
-
-    Parameters:
-        sinogram: Input sinogram
-        proj_geom: ASTRA projection geometry
-        vol_geom: ASTRA volume geometry
-
-    Returns:
-        Reconstructed image
+    Perform FBP reconstruction using ASTRA.
     """
     sinogram_id = astra.data2d.create('-sino', proj_geom, sinogram)
     recon_id = astra.data2d.create('-vol', vol_geom, 0)
-    projector_id = astra.create_projector('line', proj_geom, vol_geom)
-    
-    astra.algorithm.run(alg_id, num_iterations)
-    
+    projector_id = astra.create_projector('line', proj_geom, vol_geom)  # Add projector ID
     cfg = astra.astra_dict('FBP')
     cfg['ReconstructionDataId'] = recon_id
     cfg['ProjectionDataId'] = sinogram_id
-    cfg['ProjectorId'] = projector_id
+    cfg['ProjectorId'] = projector_id  # Include projector ID
     cfg['option'] = {'FilterType': 'Ram-Lak'}
-
     alg_id = astra.algorithm.create(cfg)
-    astra.algorithm.run(alg_id)
-
+    astra.algorithm.run(alg_id, num_iterations)
     reconstruction = astra.data2d.get(recon_id)
-
-    # Clean up
     astra.algorithm.delete(alg_id)
     astra.data2d.delete(sinogram_id)
     astra.data2d.delete(recon_id)
-    astra.projector.delete(projector_id)
-
+    astra.projector.delete(projector_id)  # Clean up projector
     return reconstruction
 
 def display_absolute_difference(image1, image2, title="Absolute Difference"):
