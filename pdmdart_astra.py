@@ -2,7 +2,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from scipy.optimize import minimize
 import astra
-from utils_astra import reconstruct_sirt_astra
+from utils_astra import reconstruct_sirt_astra, create_astra_geometry
 from sklearn.mixture import GaussianMixture
 import numpy as np
 class PDMDARTAstra:
@@ -37,22 +37,12 @@ class PDMDARTAstra:
         self.reconstruction = np.zeros(phantom_shape)
         
         # Create ASTRA geometry
-        self.proj_geom, self.vol_geom = self.create_astra_geometry(phantom_shape, self.num_angles, self.detector_size)
+        self.proj_geom, self.vol_geom = create_astra_geometry(phantom_shape, self.num_angles)
         
         # Create projector
         self.proj_id = astra.create_projector('line', self.proj_geom, self.vol_geom)
     
-   # filepath: utils_astra.py
-    def create_astra_geometry(self, phantom_shape, num_angles, detector_size):
-        """
-        Create ASTRA geometry for projection and volume.
-        """
-        vol_geom = astra.create_vol_geom(phantom_shape[0], phantom_shape[1])
-        proj_geom = astra.create_proj_geom('parallel', 1.0, detector_size, np.linspace(0, np.pi, num_angles))
 
-        
-        return proj_geom, vol_geom  # Return as separate objects
-        
 
     def forward_project(self, image):
         """Perform forward projection using ASTRA."""
@@ -290,7 +280,7 @@ class PDMDARTAstra:
             self.reconstruction = np.where(update_mask, update_recon, segmented)
             
             # Apply Gaussian smoothing
-            self.reconstruction = gaussian_filter(self.reconstruction, sigma=0.5)
+            self.reconstruction = gaussian_filter(self.reconstruction, sigma=1.0)
         
         # Clean up ASTRA projector
         astra.projector.delete(self.proj_id)
