@@ -8,7 +8,7 @@ from pdmdart_astra import PDMDARTAstra
 def main():
     # 1. Generate the phantom
     print("Generating phantom...")
-    phantom = create_phantom("basic") #basic,  "resolution", "ct", "filled"
+    phantom = create_phantom("filled") #basic,  "resolution", "ct", "filled"
     
     
     # phantom = phantom.astype(np.float32)
@@ -53,7 +53,7 @@ def main():
     # 5. Perform PDM-DART reconstruction
     print("Starting PDM-DART reconstruction with ASTRA...")
     reconstructor = PDMDARTAstra(sinogram, phantom, phantom.shape, num_grey_levels=10) #LABEdits - sending phantom
-    reconstruction = reconstructor.reconstruct(num_iterations=20, sirt_iterations=20)
+    reconstruction = reconstructor.reconstruct(num_iterations=50, sirt_iterations=40)
     save_image(reconstruction, "results/pdm_dart_reconstruction.png")
 
     # 6. Evaluate reconstruction quality
@@ -62,7 +62,7 @@ def main():
     pdm_rmse = compute_rmse(phantom, reconstruction)
     pdm_rnmp = compute_rnmp(phantom, reconstruction)
 
-    print(f"FBP RMSE: {fbp_rmse:.4f}, FBP rNMP: {fbp_rnmp:.4f}")
+    print(f"SIRT RMSE: {fbp_rmse:.4f}, Sirt rNMP: {fbp_rnmp:.4f}")
     print(f"PDM-DART RMSE: {pdm_rmse:.4f}, PDM-DART rNMP: {pdm_rnmp:.4f}")
 
     # 7. Display reconstruction results
