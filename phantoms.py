@@ -281,7 +281,7 @@ def create_phantom(input_type):
 
     else:
                         
-        img = generate_phantom(phantom_type=input_type, resolution=512, num_spikes=10, num_ellipses=5, noise_type="both", seed=42)
+        img = generate_phantom(phantom_type=input_type, resolution=512, num_spikes=10, num_ellipses=5, noise_type=None, seed=42)
         
         
     plt.imshow(img, cmap='gray')
