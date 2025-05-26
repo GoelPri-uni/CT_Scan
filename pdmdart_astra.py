@@ -20,8 +20,9 @@ class PDMDARTAstra:
         self.sinogram = sinogram
         self.phantom_shape = phantom_shape
         self.num_grey_levels = num_grey_levels
+        self.phantom_image = phantom_image
+        self.num_angles, self.detector_size = sinogram.shape
         self.num_angles = num_angles
-        #self.num_angles, self.detector_size = sinogram.shape
         print(sinogram.shape)
         
         # Initialize reconstructed image
@@ -34,6 +35,8 @@ class PDMDARTAstra:
         self.proj_id = astra.create_projector('line', self.proj_geom, self.vol_geom)
     
 
+
+ 
 
     def forward_project(self, image):
         """Perform forward projection using ASTRA."""
@@ -155,7 +158,7 @@ class PDMDARTAstra:
         # Optimize using Nelder-Mead method
         res = minimize(projection_distance, self.thresholds, method=self.opt_method)
          
-        return np.sort(res.x)
+        return res.x
     
     def segment_image_with_given_params(self, image, thresholds, grey_levels):
         """Segment the image using given thresholds and grey levels."""
@@ -257,8 +260,17 @@ class PDMDARTAstra:
        
         #self.reconstruction = self.normalize_image(self.reconstruction)
         #print("normalizing")
-        self.grey_levels, self.thresholds = self.estimate_grey_levels_and_thresholds_gmm(self.reconstruction, self.num_grey_levels)
-
+        try:
+            self.grey_levels, self.thresholds = self.estimate_grey_levels_and_thresholds_gmm(self.reconstruction, self.num_grey_levels)
+        except:
+            min_val, max_val = np.min(self.phantom_image), np.max(phantom_image)
+            if num_grey_levels > 1:
+                padding = (max_val - min_val) * 0.05 
+                self.thresholds = np.linspace(min_val + padding, max_val - padding, num_grey_levels - 1)
+            else:
+                self.thresholds = np.array([])
+            self.grey_levels = np.linspace(min_val, max_val, num_grey_levels)
+            
         previous_reconstruction = np.zeros_like(self.reconstruction) # For image change calculation
 
         
@@ -306,9 +318,9 @@ class PDMDARTAstra:
             #     if self.check_early_convergence(self.reconstruction, previous_reconstruction):
             #         break
             
-        filtered_image = median_filter(self.reconstruction, size=5)
+        #filtered_image = median_filter(self.reconstruction, size=5)
         # Clean up ASTRA projector
         astra.projector.delete(self.proj_id)
 
         
-        return filtered_image
+        return self.reconstruction

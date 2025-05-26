@@ -6,7 +6,7 @@ from skimage.io import imsave
 from scipy.ndimage import gaussian_filter
 
 
-def create_astra_geometry(phantom_shape, num_angles, detector_count=None, geometry_type='parallel'):
+def create_astra_geometry(phantom_shape, num_angles, detector_factor=None, geometry_type='parallel'):
     """
     Create ASTRA projection and volume geometry.
     
@@ -20,7 +20,7 @@ def create_astra_geometry(phantom_shape, num_angles, detector_count=None, geomet
         proj_geom, vol_geom
     """
     
-    det_count = int(4 * phantom_shape[0])
+    det_count = int(detector_factor * phantom_shape[0])
     
     vol_geom = astra.create_vol_geom(phantom_shape[0], phantom_shape[1])
     angles = np.linspace(0, np.pi, num_angles, endpoint=False)
