@@ -302,9 +302,9 @@ class PDMDARTAstra:
             self.reconstruction = gaussian_filter(self.reconstruction, sigma=0.5)
 
 
-            if (k + 1) % check_convergence == 0:
-                if self.check_early_convergence(self.reconstruction, previous_reconstruction):
-                    break
+            # if (k + 1) % check_convergence == 0:
+            #     if self.check_early_convergence(self.reconstruction, previous_reconstruction):
+            #         break
             
         filtered_image = median_filter(self.reconstruction, size=5)
         # Clean up ASTRA projector
