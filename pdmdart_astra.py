@@ -318,9 +318,9 @@ class PDMDARTAstra:
             #     if self.check_early_convergence(self.reconstruction, previous_reconstruction):
             #         break
             
-        #filtered_image = median_filter(self.reconstruction, size=5)
+        filtered_image = median_filter(self.reconstruction, size=5)
         # Clean up ASTRA projector
         astra.projector.delete(self.proj_id)
 
         
-        return self.reconstruction
+        return filtered_image
