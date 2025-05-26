@@ -17,7 +17,9 @@ def run_ablation():
         'phantom_type': ['basic', 'resolution', 'ct','filled'],
         'noise_type': [None],
         'num_angles': [100],
-        'detector_size_factor': [4]
+        'detector_size_factor': [4],
+        #'opt_method': ["Nelder-Mead", "Powell", "COBYLA"]
+        'opt_method': [ "Powell"]
     }
 
     # Generate all combinations of hyperparameters
@@ -48,7 +50,8 @@ def run_ablation():
                 sino, phantom, phantom.shape,
                 num_angles=settings['num_angles'],
                 num_grey_levels=settings['num_grey_levels'],
-                detector_factor = settings['detector_size_factor']
+                detector_factor = settings['detector_size_factor'],
+                opt_method = settings['opt_method']
             )
             recon = reconstructor.reconstruct(
                 num_iterations=settings['num_pdm_iterations'],

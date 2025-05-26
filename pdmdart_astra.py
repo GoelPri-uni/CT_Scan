@@ -8,7 +8,7 @@ import numpy as np
 from scipy.ndimage import median_filter
 
 class PDMDARTAstra:
-    def __init__(self, sinogram,phantom_image, phantom_shape, num_angles=100, num_grey_levels=2):
+    def __init__(self, sinogram,phantom_image, phantom_shape, num_angles=100, num_grey_levels=2, detector_factor=4, opt_method = "Nelder-Mead"):
         """
         Initialize the PDM-DART reconstructor (using ASTRA).
         
@@ -26,9 +26,9 @@ class PDMDARTAstra:
         
         # Initialize reconstructed image
         self.reconstruction = np.zeros(phantom_shape)
-        
+        self.opt_method = opt_method
         # Create ASTRA geometry
-        self.proj_geom, self.vol_geom = create_astra_geometry(phantom_shape, self.num_angles)
+        self.proj_geom, self.vol_geom = create_astra_geometry(phantom_shape, self.num_angles, detector_factor = detector_factor)
         
         # Create projector
         self.proj_id = astra.create_projector('line', self.proj_geom, self.vol_geom)
@@ -153,8 +153,9 @@ class PDMDARTAstra:
             return np.linalg.norm(sino - self.sinogram)
         
         # Optimize using Nelder-Mead method
-        res = minimize(projection_distance, self.thresholds, method='Nelder-Mead')
-        return res.x
+        res = minimize(projection_distance, self.thresholds, method=self.opt_method)
+         
+        return np.sort(res.x)
     
     def segment_image_with_given_params(self, image, thresholds, grey_levels):
         """Segment the image using given thresholds and grey levels."""
