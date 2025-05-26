@@ -5,8 +5,10 @@ import astra
 from utils_astra import reconstruct_sirt_astra, create_astra_geometry
 from sklearn.mixture import GaussianMixture
 import numpy as np
+from scipy.ndimage import median_filter
+
 class PDMDARTAstra:
-    def __init__(self, sinogram,phantom_image, phantom_shape, num_grey_levels=2):
+    def __init__(self, sinogram,phantom_image, phantom_shape, num_angles=100, num_grey_levels=2):
         """
         Initialize the PDM-DART reconstructor (using ASTRA).
         
@@ -18,21 +20,10 @@ class PDMDARTAstra:
         self.sinogram = sinogram
         self.phantom_shape = phantom_shape
         self.num_grey_levels = num_grey_levels
-        self.num_angles, self.detector_size = sinogram.shape
+        self.num_angles = num_angles
+        #self.num_angles, self.detector_size = sinogram.shape
+        print(sinogram.shape)
         
-        # Initialize parameters(original try)
-        self.grey_levels = np.linspace(0, 1, num_grey_levels)
-        self.thresholds = np.linspace(0.3, 0.7, num_grey_levels-1)
-        
-        # updating grey levels and thresholds from image -LABEdits
-        min_val, max_val = np.min(phantom_image), np.max(phantom_image)
-        if num_grey_levels > 1:
-            padding = (max_val - min_val) * 0.05 
-            self.thresholds = np.linspace(min_val + padding, max_val - padding, num_grey_levels - 1)
-        else:
-            self.thresholds = np.array([])
-        self.grey_levels = np.linspace(min_val, max_val, num_grey_levels)
-
         # Initialize reconstructed image
         self.reconstruction = np.zeros(phantom_shape)
         
@@ -182,7 +173,13 @@ class PDMDARTAstra:
         return segmented
 
 
-    
+
+
+    def normalize_image(self,image, lower_percentile=1, upper_percentile=99):
+        """Normalize image to [0, 1] based on percentile range."""
+        lower = np.percentile(image, lower_percentile)
+        upper = np.percentile(image, upper_percentile)
+        return np.clip((image - lower) / (upper - lower), 0, 1)
 
     def estimate_grey_levels_and_thresholds_gmm(self, image, num_levels):
         """
@@ -231,8 +228,18 @@ class PDMDARTAstra:
         
         return boundary
 
-   
-    def reconstruct(self, num_iterations=20, sirt_iterations=10, update_params_every=5):
+ 
+
+    def check_early_convergence(self, reconstruction, previous_reconstruction, tol_image_change=0.0001):
+        
+        if np.linalg.norm(reconstruction) > 1e-9: # Avoid division by zero
+            image_change = np.linalg.norm(reconstruction - previous_reconstruction) / np.linalg.norm(self.reconstruction)
+            print(f"  Relative image change: {image_change:.2e}")
+            if image_change < tol_image_change:
+                print(f"Early stopping: Relative image change ({image_change:.2e}) below tolerance {tol_image_change} after {k+1} iterations.")
+                return True
+        
+    def reconstruct(self, num_iterations=20, sirt_iterations=10, update_params_every=5, check_convergence=5):
         """
         Main PDM-DART reconstruction algorithm (using ASTRA).
         
@@ -246,11 +253,22 @@ class PDMDARTAstra:
         """
         # Initial SIRT reconstruction
         self.reconstruction = self.reconstruct_sirt(self.sinogram, sirt_iterations)
+       
+        #self.reconstruction = self.normalize_image(self.reconstruction)
+        #print("normalizing")
         self.grey_levels, self.thresholds = self.estimate_grey_levels_and_thresholds_gmm(self.reconstruction, self.num_grey_levels)
+
+        previous_reconstruction = np.zeros_like(self.reconstruction) # For image change calculation
 
         
         for k in range(num_iterations):
             print(f"Iteration {k+1}/{num_iterations}")
+
+
+            if k > 0: # No previous reconstruction for the first iteration
+                 np.copyto(previous_reconstruction, self.reconstruction)
+
+            
             
             # Update parameters every N iterations
             if k % update_params_every == 0:
@@ -280,9 +298,16 @@ class PDMDARTAstra:
             self.reconstruction = np.where(update_mask, update_recon, segmented)
             
             # Apply Gaussian smoothing
-            self.reconstruction = gaussian_filter(self.reconstruction, sigma=1.0)
-        
+            self.reconstruction = gaussian_filter(self.reconstruction, sigma=0.5)
+
+
+            if (k + 1) % check_convergence == 0:
+                if self.check_early_convergence(self.reconstruction, previous_reconstruction):
+                    break
+            
+        filtered_image = median_filter(self.reconstruction, size=5)
         # Clean up ASTRA projector
         astra.projector.delete(self.proj_id)
+
         
-        return self.reconstruction
+        return filtered_image

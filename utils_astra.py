@@ -128,6 +128,7 @@ def reconstruct_sirt_astra(sinogram, proj_geom, vol_geom, num_iterations=10, mas
         }
 
         alg_id = astra.algorithm.create(cfg)
+        
         astra.algorithm.run(alg_id, num_iterations)
 
         reconstruction = astra.data2d.get(recon_id)

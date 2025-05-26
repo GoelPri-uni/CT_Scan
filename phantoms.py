@@ -271,23 +271,21 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
         img = np.clip(img, 0, 1)
         print(f"The grey level intensities for {phantom_type}:",len(np.unique(img)))
     return img
-def create_phantom(input_type):
+def create_phantom(phantom_type, noise_type=None, seed=42):
     # Generate and Display All Phantoms
-    print("create phantom")
+    print(f"create phantom for {phantom_type}")
     
    
-    if input_type == "filled":
-        img = generate_filled_phantom(resolution=512, num_shapes=20, num_lines=0, num_curves=2, noise_type=None, seed=42)
+    if phantom_type == "filled":
+        img = generate_filled_phantom(resolution=512, num_shapes=20, num_lines=0, num_curves=2, noise_type=noise_type, seed=seed)
 
     else:
                         
-        img = generate_phantom(phantom_type=input_type, resolution=512, num_spikes=10, num_ellipses=5, noise_type=None, seed=42)
+        img = generate_phantom(phantom_type=phantom_type, resolution=512, num_spikes=10, num_ellipses=5, noise_type=noise_type, seed=seed)
         
         
-    plt.imshow(img, cmap='gray')
-    plt.title(f"{input_type.capitalize()} Phantom")
-    plt.axis("off")
-    plt.show()
-      
-
+    # plt.imshow(img, cmap='gray')
+    # plt.title(f"{phantom_type.capitalize()} Phantom")
+    # plt.axis("off")
+    # plt.show()
     return img
