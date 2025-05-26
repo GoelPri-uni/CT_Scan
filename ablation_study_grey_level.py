@@ -16,7 +16,8 @@ def run_ablation():
         #'phantom_type' : ['basic'],
         'phantom_type': ['basic', 'resolution', 'ct','filled'],
         'noise_type': [None],
-        'num_angles': [100]
+        'num_angles': [100],
+        'detector_size_factor': [4]
     }
 
     # Generate all combinations of hyperparameters
@@ -38,7 +39,7 @@ def run_ablation():
                 seed=42
             )
             proj_geom, vol_geom = create_astra_geometry(
-                phantom.shape, num_angles=settings['num_angles']
+                phantom.shape, num_angles=settings['num_angles'], detector_factor = settings['detector_size_factor']
             )
             sino = generate_sinogram_astra(phantom, proj_geom, vol_geom)
 
@@ -46,7 +47,8 @@ def run_ablation():
             reconstructor = PDMDARTAstra(
                 sino, phantom, phantom.shape,
                 num_angles=settings['num_angles'],
-                num_grey_levels=settings['num_grey_levels']
+                num_grey_levels=settings['num_grey_levels'],
+                detector_factor = settings['detector_size_factor']
             )
             recon = reconstructor.reconstruct(
                 num_iterations=settings['num_pdm_iterations'],
