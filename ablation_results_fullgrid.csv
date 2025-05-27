@@ -1,0 +1,10 @@
+num_pdm_iterations,sirt_iterations,num_grey_levels,update_every,phantom_type,noise_type,num_angles,detector_size_factor,opt_method,rnmp
+30,40,5,5,basic,,100,4,Powell,0.07179825008156243
+30,40,5,5,resolution,,100,4,Powell,0.16636253156148662
+30,40,5,5,filled,,100,4,Powell,0.25932365858139217
+30,40,10,5,basic,,100,4,Powell,0.10474070654476407
+30,40,10,5,resolution,,100,4,Powell,0.16855225602812982
+30,40,10,5,filled,,100,4,Powell,0.2260591611380591
+30,40,15,5,basic,,100,4,Powell,0.10712619649098384
+30,40,15,5,resolution,,100,4,Powell,0.1701989905078381
+30,40,15,5,filled,,100,4,Powell,0.27397745639609455
