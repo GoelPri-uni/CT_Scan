@@ -1,0 +1,4 @@
+num_pdm_iterations,sirt_iterations,num_grey_levels,update_every,phantom_type,noise_type,num_angles,detector_size_factor,opt_method,rnmp
+30,40,5,5,ct,,100,4,Powell,0.08772356661847143
+30,40,10,5,ct,,100,4,Powell,0.08698162077300492
+30,40,15,5,ct,,100,4,Powell,0.10225723744007648

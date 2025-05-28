@@ -11,10 +11,10 @@ def run_ablation():
     param_grid = {
         'num_pdm_iterations': [30],
         'sirt_iterations': [40],
-        'num_grey_levels': [ 5, 10, 15],
+        'num_grey_levels': [5, 10, 15],
         'update_every': [5],
-        #'phantom_type' : ['basic'],
-        'phantom_type': ['basic', 'resolution', 'ct','filled'],
+        #'phantom_type': ['basic', 'resolution', 'ct','filled'],
+        'phantom_type': ['ct'],
         'noise_type': [None],
         'num_angles': [100],
         'detector_size_factor': [4],
@@ -34,12 +34,16 @@ def run_ablation():
         print(f"Running: {settings}")
         try:
             # Generate phantom and sinogram
-            phantom = create_phantom(
-                phantom_type=settings['phantom_type'],
-               
-                noise_type=settings['noise_type'],
-                seed=42
-            )
+            try:
+                phantom = create_phantom(
+                    phantom_type=settings['phantom_type'],
+                
+                    noise_type=settings['noise_type'],
+                    seed=42
+                )
+            except Exception as e:
+                print(f"❌ Phantom creation failed: {e}")
+                continue
             proj_geom, vol_geom = create_astra_geometry(
                 phantom.shape, num_angles=settings['num_angles'], detector_factor = settings['detector_size_factor']
             )
@@ -76,7 +80,8 @@ def run_ablation():
 
     # Save to CSV
     df = pd.DataFrame(records)
-    df.to_csv('ablation_results_fullgrid.csv', index=False)
+    #df.to_csv('ablation_results_fullgrid.csv', index=False)
+    df.to_csv('ct.csv', index=False)
     
     # # Optional: plot RNMP vs one hyperparam at a time
     # sns.set(style="whitegrid")
