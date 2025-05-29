@@ -1,0 +1,13 @@
+num_pdm_iterations,sirt_iterations,num_grey_levels,update_every,phantom_type,noise_type,num_angles,detector_size_factor,opt_method,rnmp
+30,40,10,5,basic,,100,4,Nelder-Mead,0.07404683362364863
+30,40,10,5,basic,,100,4,Powell,0.10408237818167061
+30,40,10,5,basic,,100,4,COBYLA,0.08660101350755935
+30,40,10,5,resolution,,100,4,Nelder-Mead,0.46768545085556873
+30,40,10,5,resolution,,100,4,Powell,0.16792924838470458
+30,40,10,5,resolution,,100,4,COBYLA,0.28770408188383456
+30,40,10,5,ct,,100,4,Nelder-Mead,0.07879090361057682
+30,40,10,5,ct,,100,4,Powell,0.07899172444216224
+30,40,10,5,ct,,100,4,COBYLA,0.07213788229129989
+30,40,10,5,filled,,100,4,Nelder-Mead,0.25928986447522123
+30,40,10,5,filled,,100,4,Powell,0.22661050632188406
+30,40,10,5,filled,,100,4,COBYLA,0.2657623719841972
