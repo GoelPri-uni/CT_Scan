@@ -9,5 +9,5 @@ Initial setting for grey level -> pdm_iterations - 30, sirt_iterations- 40, upda
 2. number of pdm iterations - 10, 30, 60, 80
 3. number of sirt iterations - 20, 40, 50
 4. update after every - 5, 10, 15
-5. detector size factor- 2, 3, 4 
+5. detector size factor- 2, 4, 6 
 6. optimization techniques - Nelder-Mead, Powell, COBYLA
