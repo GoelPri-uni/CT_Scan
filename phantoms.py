@@ -137,13 +137,13 @@ def draw_starburst(img, center, radius, num_spikes=8, structure = "ellipses"):
 def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, num_ellipses=10, noise_type=None, seed=None):
     """
     Generates a flexible phantom based on user selection:
-    - "basic": Basic starburst pattern.
+    - "layered": Basic starburst pattern.
     - "resolution": Starburst pattern with high-frequency ellipses (for resolution testing).
     - "ct": Realistic CT-like phantom with soft tissue, bones, and air pockets.
     - "filled": Filled phantom with random shapes, lines, and curved structures.
 
     Parameters:
-    - phantom_type: "resolution" or "ct" or "basic" or "filled
+    - phantom_type: "resolution" or "ct" or "layered" or "filled
     - resolution: Image size (e.g., 512x512)
     - num_spikes: Number of spikes in the resolution phantom (for starburst)
     - num_ellipses: Number of ellipses in the resolution phantom
@@ -162,7 +162,7 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
     center = resolution // 2
     radius = resolution // 3
 
-    if phantom_type == "basic":
+    if phantom_type == "layered":
       img = draw_starburst(img, center, radius, num_spikes)
       img = np.nan_to_num(img, nan=0.0)
       img = np.clip(img, 0, 1)
