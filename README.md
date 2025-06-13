@@ -1,5 +1,7 @@
 
-## Run the file
+## Setup
+pip install -r requirements.txt 
+
 ## Ablation for sirt
 python ablation_study_sirt_.py
 
