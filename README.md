@@ -1,7 +1,7 @@
 
 ## Run the file
 ## Ablation for sirt
---python ablation_study_sirt_.py
+python ablation_study_sirt_.py
 
 ## Overview
 
