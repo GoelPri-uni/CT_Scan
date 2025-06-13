@@ -1,6 +1,6 @@
 
-##Run the file
-python blation_study_sirt_.py
+## Run the file
+python ablation_study_sirt_.py
 
 ## Overview
 
