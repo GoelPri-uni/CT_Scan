@@ -1,6 +1,6 @@
 
 ## Setup
-pip install -r requirements.txt 
+pip install -r requirements_.txt 
 
 ## Ablation study
 python ablation_study_sirt_.py
