@@ -217,7 +217,6 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
         print(f"The grey level intensities for {phantom_type}:",len(np.unique(img)))
 
     elif phantom_type == "ct":
-        print("Gererating CT-like phantom...")
         #  Create Elliptical Body Shape
         body_radius_x = resolution // 2.2
         body_radius_y = resolution // 3
@@ -227,8 +226,8 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
         #  Add Organ-Like Structure
         num_organs = num_ellipses
         for _ in range(num_organs):
-            cx = random.randint(int(center - body_radius_x // 2), int(center + body_radius_x // 2))
-            cy = random.randint(int(center - body_radius_y // 2), int(center + body_radius_y // 2))
+            cx = random.randint(center - body_radius_x // 2, center + body_radius_x // 2)
+            cy = random.randint(center - body_radius_y // 2, center + body_radius_y // 2)
             a = random.randint(20, 60)
             b = random.randint(15, 50)
             intensity = random.uniform(0.4, 0.6)
@@ -244,15 +243,15 @@ def generate_phantom(phantom_type="resolution", resolution=512, num_spikes=10, n
 
         #  simulate Low intensity for air regions
         for _ in range(3):
-            air_x = random.randint(int(center - body_radius_x // 3), int(center + body_radius_x // 3))
-            air_y = random.randint(int(center - body_radius_y // 3), int(center + body_radius_y // 3))
+            air_x = random.randint(center - body_radius_x // 3, center + body_radius_x // 3)
+            air_y = random.randint(center - body_radius_y // 3, center + body_radius_y // 3)
             air_rr, air_cc = ellipse(air_y, air_x, 25, 15, shape=img.shape)
             img[air_rr, air_cc] = 0.1  # Low intensity for air regions
 
         #  Add Blood Vessel-Like Structures ( Mid-intensity for vessels)
         for _ in range(5):
-            vessel_x = random.randint(int(center - body_radius_x // 3),int( center + body_radius_x // 3))
-            vessel_y = random.randint(int(center - body_radius_y // 3), int(center + body_radius_y // 3))
+            vessel_x = random.randint(center - body_radius_x // 3, center + body_radius_x // 3)
+            vessel_y = random.randint(center - body_radius_y // 3, center + body_radius_y // 3)
             vessel_a = random.randint(10, 20)
             vessel_b = random.randint(5, 15)
             vessel_rr, vessel_cc = ellipse(vessel_y, vessel_x, vessel_a, vessel_b, shape=img.shape)
