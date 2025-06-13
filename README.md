@@ -2,7 +2,7 @@
 ## Setup
 pip install -r requirements.txt 
 
-## Ablation for sirt
+## Ablation study
 python ablation_study_sirt_.py
 
 ## Overview
