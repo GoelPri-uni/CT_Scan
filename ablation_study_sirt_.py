@@ -63,7 +63,7 @@ def run_ablation():
             rmse = compute_rmse(phantom, recon)
             rnmp = compute_rnmp(phantom, recon)
 
-            save_image(recon, f"results_resolution_sirt/sirt_iterations_{settings['sirt_iterations']}_{settings['phantom_type']}.png")
+            save_image(recon, f"results_ct_sirt/sirt_iterations_{settings['sirt_iterations']}_{settings['phantom_type']}.png")
             # Save full config + rnmp
             record = settings.copy()
             record['rmse'] = rmse
@@ -79,7 +79,7 @@ def run_ablation():
 
     # Save to CSV
     df = pd.DataFrame(records)
-    df.to_csv('ablation_results_resolution_final_.csv', index=False)
+    df.to_csv('ablation_results_ct_final_.csv', index=False)
     
     
 
