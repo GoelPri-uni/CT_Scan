@@ -9,9 +9,9 @@ from pdmdart_astra import PDMDARTAstra
 
 def run_ablation():
     param_grid = {
-        'num_pdm_iterations': [30],
-        'sirt_iterations': [40],
-        'num_grey_levels': [5,10,15],
+        'num_pdm_iterations': [80],
+        'sirt_iterations': [20,40,50],
+        'num_grey_levels': [5],
         'update_every': [5],
         #'phantom_type' : ['basic'],
         'phantom_type': ['ct'],
