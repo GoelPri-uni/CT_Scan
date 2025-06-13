@@ -11,15 +11,15 @@ def run_ablation():
     param_grid = {
         'num_pdm_iterations': [30],
         'sirt_iterations': [40],
-        'num_grey_levels': [5, 10, 15],
+        'num_grey_levels': [5,10,15],
         'update_every': [5],
-        #'phantom_type': ['basic', 'resolution', 'ct','filled'],
+        #'phantom_type' : ['basic'],
         'phantom_type': ['ct'],
         'noise_type': [None],
         'num_angles': [100],
         'detector_size_factor': [4],
         #'opt_method': ["Nelder-Mead", "Powell", "COBYLA"]
-        'opt_method': [ "Powell"]
+        'opt_method': [ "COBYLA"]
     }
 
     # Generate all combinations of hyperparameters
@@ -34,16 +34,12 @@ def run_ablation():
         print(f"Running: {settings}")
         try:
             # Generate phantom and sinogram
-            try:
-                phantom = create_phantom(
-                    phantom_type=settings['phantom_type'],
-                
-                    noise_type=settings['noise_type'],
-                    seed=42
-                )
-            except Exception as e:
-                print(f"❌ Phantom creation failed: {e}")
-                continue
+            phantom = create_phantom(
+                phantom_type=settings['phantom_type'],
+               
+                noise_type=settings['noise_type'],
+                seed=42
+            )
             proj_geom, vol_geom = create_astra_geometry(
                 phantom.shape, num_angles=settings['num_angles'], detector_factor = settings['detector_size_factor']
             )
@@ -64,13 +60,16 @@ def run_ablation():
             )
 
             # Compute RNMP
+            rmse = compute_rmse(phantom, recon)
             rnmp = compute_rnmp(phantom, recon)
 
-
-            save_image(recon, f"results/pdm_grey_levels_{settings['num_grey_levels']}_{settings['phantom_type']}.png")
+            save_image(recon, f"results_resolution_sirt/sirt_iterations_{settings['sirt_iterations']}_{settings['phantom_type']}.png")
             # Save full config + rnmp
             record = settings.copy()
+            record['rmse'] = rmse
             record['rnmp'] = rnmp
+            
+            
             records.append(record)
 
             print(f"✅ Done: RNMP={rnmp:.4f}")
@@ -80,20 +79,9 @@ def run_ablation():
 
     # Save to CSV
     df = pd.DataFrame(records)
-    #df.to_csv('ablation_results_fullgrid.csv', index=False)
-    df.to_csv('ct.csv', index=False)
+    df.to_csv('ablation_results_resolution_final_.csv', index=False)
     
-    # # Optional: plot RNMP vs one hyperparam at a time
-    # sns.set(style="whitegrid")
-    # for param in keys:
-    #     plt.figure(figsize=(6, 4))
-    #     sns.lineplot(data=df, x=param, y='rnmp', marker='o')
-    #     plt.title(f'Ablation on {param}')
-    #     plt.xlabel(param)
-    #     plt.ylabel('RNMP')
-    #     plt.tight_layout()
-    #     plt.savefig(f'ablation_{param}.png', dpi=150)
-    #     plt.show()
+    
 
 if __name__ == '__main__':
     run_ablation()
