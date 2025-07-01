@@ -17,3 +17,5 @@ Each phantom is designed to test specific aspects of the reconstruction process:
 - **Filled Phantom**: Contains overlapping and free-form shapes to challenge the method’s pixel classification under complexity.
 
 ---
+## Reconstruction of CT phantom with gradient based optimization 
+![github-small](https://github.com/GoelPri-uni/CT_Scan/blob/main/CT_phantom_reconstruction.png)
