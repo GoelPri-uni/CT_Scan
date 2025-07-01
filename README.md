@@ -18,4 +18,5 @@ Each phantom is designed to test specific aspects of the reconstruction process:
 
 ---
 ## Reconstruction of CT phantom with gradient based optimization 
+### python pinns.py
 ![github-small](https://github.com/GoelPri-uni/CT_Scan/blob/main/CT_phantom_reconstruction.png)
